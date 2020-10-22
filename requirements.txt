@@ -1,0 +1,3 @@
+aiohttp==3.6.3
+asyncpg==0.21.0
+envparse==0.2.0
