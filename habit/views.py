@@ -1,22 +1,16 @@
 from aiohttp import web
-from aiohttp_auth import auth
 
-from habit.auth import Users
+from habit.auth import Users, Habit
 from habit.db import Database
-
-
-async def index(request: web.Request) -> None:
-    raise web.HTTPFound('/login')
 
 
 async def login(request: web.Request) -> None:
     if request.method == 'POST':
         payload = Users(only=('username', 'password')).load(await request.post())
-        user = await Database(request).check_user(**payload)
-        if user is not None:
-            await auth.remember(request, str(user[0]['users_id']).encode())
-            raise web.HTTPFound(f'/users/{user[0]["users_id"]}')
-        raise web.HTTPUnauthorized()
+        user = await Database(request).authorized_user(**payload)
+        if not user:
+            raise web.HTTPUnauthorized()
+        return web.HTTPFound(f'users/{user[0]["user_id"]}')
 
 
 async def register(request: web.Request) -> web.json_response:
@@ -25,10 +19,15 @@ async def register(request: web.Request) -> web.json_response:
     return web.json_response(Users().dump(users_id, many=True))
 
 
-@auth.auth_required
-async def views_profile(request: web.Request):
-    _id = request.match_info['users_id']
-    users_id = Users(only=('users_id',)).load({'users_id': _id}, partial=True)
-    data = await Database(request).view_user(users_id['users_id'])
+async def views_profile(request: web.Request) -> web.json_response:
+    _id = request.match_info.get('user_id', None)
+    if _id is None:
+        data = await Database(request).view_user(user_id=_id)
+    else:
+        user_id = Users(only=('user_id',)).load({'user_id': _id}, partial=True)
+        data = await Database(request).view_user(user_id['user_id'])
     response = Users().dump(data, many=True)
     return web.json_response(response)
+
+
+

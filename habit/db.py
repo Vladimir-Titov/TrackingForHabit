@@ -16,15 +16,15 @@ class Database:
     async def add_user(self, username: str, password: str, email: str) -> asyncpg.Record:
         query = 'INSERT INTO users (username, password, email) ' \
                 'VALUES ($1, $2, $3) ' \
-                'RETURNING users_id'
+                'RETURNING user_id;'
         password_hash = generate_password_hash(password)
         return await self.__context_manager(query, username, password_hash, email)
 
-    async def check_user(self, username: str, password: str) -> asyncpg.Record:
-        query = 'SELECT users_id FROM users WHERE username=$1 and password=$2'
+    async def authorized_user(self, username: str, password: str) -> asyncpg.Record:
+        query = 'SELECT user_id FROM users WHERE username=$1 and password=$2;'
         password_hash = generate_password_hash(password)
         return await self.__context_manager(query, username, password_hash)
 
-    async def view_user(self, users_id: int) -> asyncpg.Record:
-        query = 'SELECT * FROM users WHERE users_id=$1'
-        return await self.__context_manager(query, users_id)
+    async def view_user(self, user_id: int = None) -> asyncpg.Record:
+        query = 'SELECT user_id, email, username FROM users WHERE ($1::integer IS NULL or $1=user_id);'
+        return await self.__context_manager(query, user_id)
